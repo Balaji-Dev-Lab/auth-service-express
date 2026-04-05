@@ -1,0 +1,22 @@
+# Use the specific Node version you are using
+FROM node:24.14.1-slim
+
+# Install openssl for Prisma
+RUN apt-get update -y && apt-get install -y openssl
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+RUN npm ci
+
+# Copy the rest of the backend code
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+EXPOSE 5000
+
+# We will override this in docker-compose for migrations
+CMD ["node", "src/index.js"]
