@@ -22,6 +22,7 @@ jobs:
         run: |
           docker compose down -v || true
           docker compose up --build --abort-on-container-exit --exit-code-from backend
+          # exec command to run tests
         env:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
 
