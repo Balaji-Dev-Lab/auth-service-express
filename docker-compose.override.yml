@@ -1,0 +1,17 @@
+services:
+  db:
+    ports:
+      - "5435:5432" # expose db port so you can connect with TablePlus etc.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # persist data locally
+
+  backend:
+    ports:
+      - "5000:5000"
+    command: sh -c "npx prisma migrate deploy && npx node src/index.js"
+    volumes:
+      - ./backend:/app # hot reload
+      - /app/node_modules # protect container's node_modules
+
+volumes:
+  postgres_data:

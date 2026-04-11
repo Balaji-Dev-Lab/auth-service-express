@@ -1,0 +1,6 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: test
+    command: sh -c "npx prisma migrate deploy && npm test"

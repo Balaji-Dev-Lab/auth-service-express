@@ -1,22 +1,211 @@
-# Use the specific Node version you are using
-FROM node:24.14.1-slim
 
-# Install openssl for Prisma
-RUN apt-get update -y && apt-get install -y openssl
+
+# ── Stage 1: deps ──────────────────────────────────────────────
+FROM node:24.14.1-slim AS deps
+
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy package files first for better caching
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --omit=dev
 
-# Copy the rest of the backend code
+
+# ── Stage 2: builder (generates Prisma client) ─────────────────
+FROM node:24.14.1-slim AS builder
+
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma
+
+RUN npm ci
+RUN npx prisma generate
+
+
+# ── Stage 3: test stage ────────────────────────────────────────
+
+FROM node:24.14.1-slim AS test
+
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+
+
+COPY package*.json ./
+RUN npm ci --include=dev
+# Prisma client is needed for tests that import it, so we generate it here as well.
+# Copy generated Prisma client from builder stage.DRY principle: we don't want to repeat the prisma generate step in this test stage, so we copy the already generated client from the builder stage. This keeps our test stage lean and fast.
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+CMD ["npm", "test"]
+
+
+# ── Stage 4: final image (runner) ──────────────────────────────
+FROM node:24.14.1-slim AS runner
+
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+# Copy node_modules from deps stage (production deps only)
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy generated Prisma client from builder stage
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Copy the rest of the source code
+COPY . .
+
+# Give ownership to non-root user
+RUN chown -R appuser:appgroup /app
+
+# Set npm cache directory with proper permissions
+# EACCESS denied, path:/nonexistent is a common npm error when running as non-root without a writable cache directory. Setting it to a directory owned by appuser prevents this.
+RUN mkdir -p /home/appuser/.npm && chown -R appuser:appgroup /home/appuser
+
+USER appuser
 
 EXPOSE 5000
 
-# We will override this in docker-compose for migrations
 CMD ["node", "src/index.js"]
+
+
+
+
+
+# qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+
+# qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq
+
+# # ── Stage 1: deps ──────────────────────────────────────────────
+# # We name this stage "deps" so we can reference it later if needed
+# FROM node:24.14.1-slim AS deps
+
+# # Install openssl required by Prisma.
+# # We chain all apt commands in ONE RUN instruction and clean up at the end.
+# # Why one RUN? Each RUN = one image layer. Cleanup in a separate RUN layer
+# # doesn't actually shrink the image because Docker already committed the bloat
+# # in the previous layer. Chaining with && and cleaning in the SAME RUN fixes this.
+# RUN apt-get update -y \
+#     && apt-get install -y --no-install-recommends openssl \
+#     && rm -rf /var/lib/apt/lists/*
+# # --no-install-recommends: don't install optional packages, keeps image lean
+# # rm -rf /var/lib/apt/lists/*: delete the package index cache, not needed at runtime
+
+# WORKDIR /app
+
+# # Copy only package files first.
+# # Docker layer cache: this layer only rebuilds when package.json or package-lock.json changes.
+# # Your actual source code changes won't trigger a full npm ci re-run.
+# COPY package*.json ./
+
+# # npm ci (clean install) is preferred over npm install in CI/CD and Docker because:
+# # 1. It strictly follows package-lock.json — no surprise version upgrades
+# # 2. It deletes node_modules and reinstalls fresh — fully deterministic
+# # 3. Fails if package-lock.json is out of sync with package.json (catches mistakes)
+# RUN npm ci --omit=dev
+# # --omit=dev: don't install devDependencies in production image
+# # (test libraries, eslint, nodemon etc. have no place in a production container)
+
+
+# #____________________________________________________________________________________________
+# #intermedite test stage
+# # test stage (includes dev deps)
+# FROM node:24-slim AS test
+# WORKDIR /app
+# COPY package*.json ./
+# RUN npm ci   
+# # <-- no omit here
+# COPY . .
+
+# CMD ["npm", "test"]
+
+# # ── Stage 2: final image ───────────────────────────────────────................................
+# FROM node:24.14.1-slim AS runner
+
+# RUN apt-get update -y \
+#     && apt-get install -y --no-install-recommends openssl \
+#     && rm -rf /var/lib/apt/lists/*
+
+# WORKDIR /app
+
+# # Security: create a non-root user to run the application
+# # Running as root inside a container is dangerous — if an attacker escapes
+# # the container, they have root on the host. This is a CIS Docker Benchmark requirement.
+# RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+# # Copy node_modules from the deps stage (already built, no dev deps)
+# COPY --from=deps /app/node_modules ./node_modules
+
+# # Copy the rest of the source code
+# COPY . .
+
+# # Generate Prisma client (needs to happen after code is copied)
+# RUN npx prisma generate
+
+# # Give ownership of the app directory to our non-root user
+# RUN chown -R appuser:appgroup /app
+
+# # Switch to non-root user
+# USER appuser
+
+# # Document which port the container listens on.
+# # EXPOSE doesn't actually publish the port — that's done in docker-compose or docker run.
+# # It serves as documentation and is used by Docker networking tools.
+# EXPOSE 5000
+
+# # Use exec form (JSON array), NOT shell form ("node src/index.js")
+# # Shell form runs as: /bin/sh -c "node src/index.js"
+# # That means node is a child of sh. When Docker sends SIGTERM to stop the container,
+# # sh receives it but may not forward it to node — your app won't shut down gracefully.
+# # Exec form runs node directly as PID 1 and receives signals correctly.
+# CMD ["node", "src/index.js"]
+
+
+
+
+# ********************************************************************************************************
+
+
+
+
+
+
+# # Use the specific Node version you are using
+# FROM node:24.14.1-slim
+
+# # Install openssl for Prisma
+# RUN apt-get update -y && apt-get install -y openssl
+
+# WORKDIR /app
+
+# # Copy package files first for better caching
+# COPY package*.json ./
+# RUN npm ci
+
+# # Copy the rest of the backend code
+# COPY . .
+
+# # Generate Prisma client
+# RUN npx prisma generate
+
+# EXPOSE 5000
+
+# # We will override this in docker-compose for migrations
+# CMD ["node", "src/index.js"]

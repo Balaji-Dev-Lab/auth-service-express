@@ -1,0 +1,25 @@
+{
+  "name": "auth-service-express",
+  "version": "1.0.0",
+  "description": "1. dont runn tests locally.. run tests directly in CI pipeline.",
+  "homepage": "https://github.com/Balaji-Dev-Lab/auth-service-express#readme",
+  "bugs": {
+    "url": "https://github.com/Balaji-Dev-Lab/auth-service-express/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Balaji-Dev-Lab/auth-service-express.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "docker:up": "docker compose up",
+    "docker:build": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:clean": "docker compose down -v",
+    "docker:test": "docker compose -f docker-compose.yml -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from backend",
+    "docker:testnocache": "docker compose -f docker-compose.yml -f docker-compose.test.yml build --no-cache && docker compose -f docker-compose.yml -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from backend"
+  }
+}

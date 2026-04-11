@@ -16,3 +16,5 @@ Runner stage → plate (serve only what’s needed)
 8. child process + redis/bullMQ (caching)
 
 9) app.js and index.js seperate.
+
+10. error handlind using class:

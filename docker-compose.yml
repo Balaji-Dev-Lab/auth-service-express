@@ -1,14 +1,10 @@
 services:
   db:
     image: postgres:15
-    restart: always
     environment:
       - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=auth_db
-    ports:
-      - "5435:5432"
-
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d auth_db"]
       interval: 5s
@@ -18,13 +14,42 @@ services:
   backend:
     build: ./backend
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/auth_db
+      - DATABASE_URL=postgresql://user:${POSTGRES_PASSWORD}@db:5432/auth_db
       - PORT=5000
-      - JWT_SECRET_KEY="65758060043"
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "5000:5000"
-    # command: sh -c "npx prisma migrate deploy && node src/index.js"
-    command: sh -c "npx prisma migrate deploy && npm test"
+
+# ********************************************************************************************************
+
+# services:
+#   db:
+#     image: postgres:15
+#     restart: always
+#     environment:
+#       - POSTGRES_USER=${POSTGRES_USER}
+#       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+#       - POSTGRES_DB=${POSTGRES_DB}
+#     ports:
+#       - "5435:5432"
+
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U user -d auth_db"]
+#       interval: 5s
+#       timeout: 5s
+#       retries: 5
+
+#   backend:
+#     build: ./backend
+#     environment:
+#       - DATABASE_URL=postgresql://user:password@db:5432/auth_db
+#       - PORT=5000
+#       - JWT_SECRET_KEY="65758060043"
+#     depends_on:
+#       db:
+#         condition: service_healthy
+#     ports:
+#       - "5000:5000"
+#     # command: sh -c "npx prisma migrate deploy && node src/index.js"
+#     command: sh -c "npx prisma migrate deploy && npm test"

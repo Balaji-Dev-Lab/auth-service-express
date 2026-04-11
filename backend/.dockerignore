@@ -1,0 +1,5 @@
+
+# we include env here because we dont want to hardcode or copy it  inside the docker image of backend . because we push this image to docker hub and its not safe to do it because docker hub images can be accessed by soeone in future . so we use the root env file to load env variables in docker compose using the root env file  
+.env
+.git
+node_modules
