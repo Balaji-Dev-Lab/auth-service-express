@@ -8,6 +8,10 @@ jobs:
   test-and-build:
     runs-on: ubuntu-latest
 
+    env:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
     steps:
       # 1. Get code
       - name: Checkout code
