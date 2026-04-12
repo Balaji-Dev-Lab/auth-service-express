@@ -1,14 +1,8 @@
-# using cached image
+# this is testing for local development,not for CI/CD.for CI/CD, we have docker-compose.yml,docker-compose.override.yml ,docker-compose.test.yml and .github/workflows/ci.yml files.
 
 services:
   backend:
-    image: backend:test
-
+    build:
+      context: ./backend
+      target: test
     command: sh -c "npx prisma migrate deploy && npm test"
-
-# services:
-#   backend:
-#     build:
-#       context: ./backend
-#       target: test
-#     command: sh -c "npx prisma migrate deploy && npm test"
