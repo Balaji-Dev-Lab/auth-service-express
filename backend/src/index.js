@@ -1,7 +1,15 @@
 import "dotenv/config";
+import cors from "cors";
 
 import express from "express";
 const app = express();
+
+app.use(
+  cors({
+    origin: "http://localhost:5173", // frontend URL
+    credentials: true, // needed if you use cookies later
+  }),
+);
 app.use(express.json());
 
 import globalErrorHandler from "./middlewares/error.middleware.js";
