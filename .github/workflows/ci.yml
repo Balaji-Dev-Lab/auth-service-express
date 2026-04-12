@@ -11,7 +11,7 @@ on:
     branches: ["main"]
 
 jobs:
-  #  TEST JOB (runs on PR + push)
+  # 🧪 TEST JOB (runs on PR + push)
   test:
     name: Backend integration tests with Docker Compose
     runs-on: ubuntu-latest
