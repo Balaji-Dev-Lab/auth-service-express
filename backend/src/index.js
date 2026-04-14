@@ -6,10 +6,29 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend URL
+    origin: process.env.FRONTEND_URL, // allow only the frontend URL
     credentials: true, // needed if you use cookies later
   }),
 );
+
+// const allowedOrigins = [
+//   "http://localhost:5173", // dev
+//   "http://your-ec2-ip", // temporary
+//   "https://yourdomain.com", // production (later)
+// ];
+
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       if (!origin || allowedOrigins.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         callback(new Error("Not allowed by CORS"));
+//       }
+//     },
+//     credentials: true,
+//   }),
+// );
 app.use(express.json());
 
 import globalErrorHandler from "./middlewares/error.middleware.js";

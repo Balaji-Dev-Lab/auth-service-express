@@ -106,6 +106,16 @@ jobs:
         run: |
           docker push balajichakari/auth-service-express:latest
 
+      # Build frontend image
+      - name: Build frontend image
+        run: |
+          docker build -t balajichakari/frontend:latest ./frontend
+
+      # Push frontend image
+      - name: Push frontend image
+        run: |
+          docker push balajichakari/frontend:latest
+
 # jobs:
 #   test-and-build:
 #     runs-on: ubuntu-latest
